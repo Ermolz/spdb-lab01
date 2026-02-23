@@ -18,6 +18,11 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: gradle
+          cache-dependency-path: |
+            build.gradle
+            gradle/wrapper/gradle-wrapper.properties
 
       - name: Build and run tests
-        run: ./gradlew build --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon
