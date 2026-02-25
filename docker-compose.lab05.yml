@@ -1,0 +1,63 @@
+services:
+  postgres-primary:
+    image: postgres:15
+    user: postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: lab01
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command:
+      - postgres
+      - -c
+      - listen_addresses=*
+      - -c
+      - port=5432
+      - -c
+      - wal_level=replica
+      - -c
+      - hot_standby=on
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - hot_standby_feedback=on
+    volumes:
+      - ./docker/lab05/00_init.sql:/docker-entrypoint-initdb.d/00_init.sql
+      - ./docker/lab05/01_replication_pg_hba.sh:/docker-entrypoint-initdb.d/01_replication_pg_hba.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lab01"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  postgres-replica:
+    image: postgres:15
+    user: postgres
+    restart: always
+    ports:
+      - "5433:5432"
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      PGUSER: replicator
+      PGPASSWORD: replicator_password
+    command:
+      - bash
+      - -c
+      - |
+        until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication_slot --host=postgres-primary --port=5432 -U replicator; do
+          echo 'Waiting for primary...'
+          sleep 2
+        done
+        echo 'Backup done, starting replica...'
+        chmod 0700 /var/lib/postgresql/data
+        exec postgres
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
