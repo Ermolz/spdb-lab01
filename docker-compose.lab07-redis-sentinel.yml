@@ -1,0 +1,78 @@
+services:
+  redis-master:
+    image: redis:7-alpine
+    command: redis-server
+    ports:
+      - "6379:6379"
+    networks:
+      - redis-sentinel-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  redis-replica1:
+    image: redis:7-alpine
+    command: redis-server --replicaof redis-master 6379
+    ports:
+      - "6380:6379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-sentinel-net
+
+  redis-replica2:
+    image: redis:7-alpine
+    command: redis-server --replicaof redis-master 6379
+    ports:
+      - "6381:6379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-sentinel-net
+
+  redis-sentinel1:
+    image: redis:7-alpine
+    command: redis-sentinel /etc/redis/sentinel.conf
+    volumes:
+      - ./docker/lab07/sentinel.conf:/etc/redis/sentinel.conf
+    ports:
+      - "26379:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-sentinel-net
+
+  redis-sentinel2:
+    image: redis:7-alpine
+    command: redis-sentinel /etc/redis/sentinel.conf
+    volumes:
+      - ./docker/lab07/sentinel.conf:/etc/redis/sentinel.conf
+    ports:
+      - "26380:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-sentinel-net
+
+  redis-sentinel3:
+    image: redis:7-alpine
+    command: redis-sentinel /etc/redis/sentinel.conf
+    volumes:
+      - ./docker/lab07/sentinel.conf:/etc/redis/sentinel.conf
+    ports:
+      - "26381:26379"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - redis-sentinel-net
+
+networks:
+  redis-sentinel-net:
+    driver: bridge
